@@ -4,7 +4,7 @@ from openai import OpenAI
 
 system_prompt ="""
 You are an intelligent software engineering AI assistant.
-You write clear, concise and modular maintable code.
+You write clear, concise and modular maintainable code.
 
 You have been asked to complete the following project:
 {goal}
@@ -138,9 +138,16 @@ class LLMPC:
             f.close()
 
         self.actions.extend(plan)
+
 ###########
 # Main code
 ###########
+# Clean and recreate files directory
+if os.path.exists("./files"):
+    import shutil
+    shutil.rmtree("./files")
+os.makedirs("./files")
+
 api_key = os.getenv("OPENAI_KEY")
 if not api_key:
     raise ValueError("OPENAI_KEY environment variable not set")
