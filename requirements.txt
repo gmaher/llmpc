@@ -1,0 +1,5 @@
+openai
+numpy
+matplotlib
+pandas
+cvxpy
