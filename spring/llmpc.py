@@ -5,9 +5,7 @@ from matplotlib.animation import FuncAnimation
 from openai import OpenAI
 import ast
 import pandas as pd
-
-OPENAI_KEY = os.environ['OPENAI_KEY']
-openai = OpenAI(api_key=OPENAI_KEY)
+from lib import get_best_llm_plan
 
 #LLM parameters
 SEED = 42
@@ -43,100 +41,11 @@ vs = [v0]
 us = [0]
 costs = [Qx*(x0 - x_goal)**2 + Qv*(v0)**2]
 
-def simulate_sequence(x_init, v_init, u_sequence):
-    # Simulate forward using the proposed controls and return the cost
-    x = x_init
-    v = v_init
-    cost = 0.0
-    for i, u in enumerate(u_sequence):
-        # Compute cost at this step
-        cost += Qu*(u**2)
-        # Update state
-        a = (u - k_spring*x)/m
-        x = x + dt*v
-        v = v + dt*a
-    # Add terminal cost:
-    cost += Qx*(x - x_goal)**2 + Qv*(v**2)
-    return cost
-
-def query_llm_for_plans(x_init, v_init, x_goal, H, K):
-    # Prompt asking for K candidate sequences
-    prompt = f"""
-Given:
- - A mass-spring system with position x and velocity v.
- - Dynamics:
-   x_(k+1) = x_k + dt * v_k
-   v_(k+1) = v_k + (dt/m)*(u_k - k_spring*x_k)
- - Parameters: m={m}, k_spring={k_spring}, dt={dt}
- - Current state: x={x_init}, v={v_init}
- - Goal position: x_goal={x_goal}
- - Horizon: H={H}
- - The current spring force is {-k_spring*x_init}
- 
- You control the force on the spring via the control sequence u = [u_0, u_1, ..., u_{H-1}].
- You must apply forces to get the spring to the goal position.
- Please propose {K} candidate control sequences, each being a list of length H.
- - Controls should be between 0 and 20
- - Return them as a Python dictionary with keys "sequence_1", "sequence_2", ..., "sequence_{K}", 
-   where each value is a list of length H. Example:
-   {{
-     "sequence_1": [u_0, u_1, ..., u_{{H-1}}],
-     "sequence_2": [u_0, u_1, ..., u_{{H-1}}],
-     ...
-   }}
-Do not use ```python tags, no extra commentary, just return the dictionary.
-"""
-
-    response = openai.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":prompt}],
-        temperature=TEMPERATURE,
-        max_tokens=500,
-        seed=SEED
-    )
-    plan_str = response.choices[0].message.content.strip()
-    print(prompt)
-    print(plan_str)
-    # Attempt parsing
-    try:
-        plans = ast.literal_eval(plan_str)
-        # Expecting a dict with sequence_i keys
-        if not isinstance(plans, dict):
-            raise ValueError("LLM did not return a dictionary.")
-        # Check each sequence is list of length H
-        for i in range(1, K+1):
-            seq_key = f"sequence_{i}"
-            if seq_key not in plans:
-                raise ValueError(f"Key {seq_key} not found.")
-            seq = plans[seq_key]
-            if not (isinstance(seq, list) and len(seq) == H):
-                raise ValueError(f"{seq_key} is not a list of length {H}.")
-    except Exception as e:
-        print("Error parsing LLM output, returning zeros:", e)
-        # If parsing fails, just return K zero sequences
-        plans = {f"sequence_{i}": [0.0]*H for i in range(1,K+1)}
-    return plans
-
-def get_best_llm_plan(x, v):
-    plans = query_llm_for_plans(x, v, x_goal, H, K)
-
-    best_cost = float('inf')
-    best_plan = [0.0]*H
-    for i in range(1, K+1):
-        candidate = plans[f"sequence_{i}"]
-        cost = simulate_sequence(x, v, candidate)
-        print(cost,candidate)
-        if cost < best_cost:
-            best_cost = cost
-            best_plan = candidate
-
-    return best_plan
-
 # Simulation loop
 x = x0
 v = v0
 for t in range(0, T, M):
-    u_plan = get_best_llm_plan(x, v)
+    u_plan = get_best_llm_plan(x, v, H, K, dt, m, k_spring, x_goal, Qx, Qv, Qu)
 
     steps_to_apply = min(M, T - t)
     for i in range(steps_to_apply):
@@ -176,6 +85,8 @@ def update(frame):
     return line, mass_plot
 
 ani = FuncAnimation(fig, update, frames=len(xs), init_func=init, blit=True, interval=100)
+
+ani.save('./output/spring_mass_llmpc.gif', writer='ffmpeg', fps=10)
 
 plt.show()
 

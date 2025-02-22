@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import cvxpy as cp
 import pandas as pd
+from lib import solve_mpc
 
 # ------------------------------------------------------------
 # Model Predictive Control for a simple mass-spring system
@@ -72,57 +73,12 @@ costs = [Qx*(x0 - x_goal)**2 + Qv*(v0)**2]
 nx = 2 # (x, v)
 nu = 1 # (u)
 
-def solve_mpc(x_init, v_init):
-    # Variables
-    x_var = cp.Variable((H+1,)) # positions
-    v_var = cp.Variable((H+1,)) # velocities
-    u_var = cp.Variable((H,))   # control inputs
-
-    # Objective
-    cost = 0
-    constraints = []
-    # Initial conditions
-    constraints += [x_var[0] == x_init]
-    constraints += [v_var[0] == v_init]
-
-    # Dynamics and costs
-    for i in range(H):
-        # Cost
-        cost += Qu * (u_var[i])**2
-
-        # Dynamics
-        # x_{k+1} = x_k + dt*v_k
-        constraints += [x_var[i+1] == x_var[i] + dt*v_var[i]]
-        # v_{k+1} = v_k + (dt/m)*(u_k - k_spring*(x_k - x_0))
-        constraints += [v_var[i+1] == v_var[i] + (dt/m)*(u_var[i] - k_spring*(x_var[i]))]
-
-    # Terminal cost (for stability)
-    cost += Qx*(x_var[H] - x_goal)**2 + Qv*(v_var[H])**2
-
-    # Solve MPC
-    prob = cp.Problem(cp.Minimize(cost), constraints)
-    prob.solve(solver=cp.OSQP, warm_start=True)
-
-    # Extract solution
-    if prob.status not in ["infeasible", "unbounded"]:
-        u_plan = u_var.value
-        x_plan = x_var.value
-        v_plan = v_var.value
-    else:
-        # If infeasible, return zeros or something stable
-        u_plan = np.zeros(H)
-        x_plan = np.zeros(H+1)
-        v_plan = np.zeros(H+1)
-
-    return x_plan, v_plan, u_plan
-
-
 # Simulation loop
 x = x0
 v = v0
 for t in range(0, T, M):
     # Solve MPC
-    x_plan, v_plan, u_plan = solve_mpc(x, v)
+    x_plan, v_plan, u_plan = solve_mpc(x, v, H, dt, m, k_spring, x_goal, Qx, Qv, Qu)
     steps_to_apply = min(M, T - t)
 
     for i in range(steps_to_apply):
@@ -169,6 +125,8 @@ def update(frame):
     return line, mass_plot
 
 ani = FuncAnimation(fig, update, frames=len(xs), init_func=init, blit=True, interval=100)
+
+ani.save('./output/spring_mass_mpc.gif', writer='ffmpeg', fps=10)
 
 plt.show()
 

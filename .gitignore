@@ -1,3 +1,8 @@
+trip_planner/output
+trip_planner/data
+meeting_planning/output
+meeting_planning/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
