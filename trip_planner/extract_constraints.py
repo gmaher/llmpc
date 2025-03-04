@@ -7,12 +7,12 @@ OPENAI_KEY = os.environ['OPENAI_KEY']
 
 openai = OpenAI(api_key=OPENAI_KEY)
 
-fn = "/home/gabriel/projects/llmpc/trip_planner/data/trip_planning_reduced.json"
+fn = "/home/gabriel/projects/llmpc/trip_planner/data/trip_planning_small.json"
 f = open(fn,'r')
 data = json.load(f)
 
 output_data = {}
-output_fn = "/home/gabriel/projects/llmpc/trip_planner/data/trip_planning_reduced.json"
+output_fn = "/home/gabriel/projects/llmpc/trip_planner/data/trip_planning_small.json"
 
 for k,d in list(data.items()):
     print(k)

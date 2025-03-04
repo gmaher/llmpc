@@ -215,6 +215,11 @@ def check_trip_constraints(constraints, trip):
         # 4) Check flight connectivity from the previous city
         if i > 0:
             prev_city = trip[i - 1][0]
+            if prev_city not in constraints:
+              errors.append(f"City '{prev_city}' not found in constraints.")
+              # Skip further checks for this city
+              current_day += days
+              continue
             if city not in constraints[prev_city]['flights']:
                 errors.append(
                     f"City '{city}' is not reachable from '{prev_city}'. "
