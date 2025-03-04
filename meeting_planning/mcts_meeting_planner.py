@@ -170,15 +170,17 @@ def evaluate_plan(plan, start_location, initial_time, constraints, dist_matrix):
         parsed_plan = parse_text_plan(plan)
         failed_constraints = validate_constraints(parsed_plan, constraints, start_location, initial_time, dist_matrix)
         
-        # Count the number of valid meetings in the plan
-        meeting_count = sum(1 for step in parsed_plan if step[0] == 'meeting')
+        # # Count the number of valid meetings in the plan
+        # meeting_count = sum(1 for step in parsed_plan if step[0] == 'meeting')
         
-        # If there are constraint failures, penalize the score
-        if failed_constraints:
-            return meeting_count / (len(failed_constraints) + 10.0)  # Penalize failures
+        # # If there are constraint failures, penalize the score
+        # if failed_constraints:
+        #     return meeting_count / (len(failed_constraints) + 10.0)  # Penalize failures
         
-        # Return the number of meetings as the score
-        return meeting_count
+        # # Return the number of meetings as the score
+        # return meeting_count
+        return 1.0/(1+len(failed_constraints))
+    
     except Exception as e:
         # If plan parsing fails, return a very low score
         print(f"Error evaluating plan: {e}")
@@ -250,7 +252,11 @@ def run_mcts(task, start_location, initial_time, constraints, dist_matrix, num_s
                 best_score = current_score
                 best_plan = eval_node.state
                 log_file.write(f"**New best plan found!** Score: {best_score}\n")
-                
+
+            if best_score >= 1.0:
+                print("found solution exiting early")
+                break
+
             log_file.write("---\n")
         
         # Final results
