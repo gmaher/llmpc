@@ -25,7 +25,7 @@ from absl import flags
 
 _DATA_PATH = flags.DEFINE_string(
     "data_path",
-    "output/meeting_mcts_solutions_40.json",
+    "output/meeting_mcts_solutions_20.json",
     "path to the data file containing model responses in json format.",
 )
 
